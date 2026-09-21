@@ -1,6 +1,4 @@
-// ==========================================
 // CONFIGURACIÓN DE FIREBASE
-// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyBOGjCbKMiu0Sy5kTNgm0O1xR9sySML2bU",
   authDomain: "sin-analytics-84167.firebaseapp.com",
@@ -19,7 +17,6 @@ if ('serviceWorker' in navigator) {
 }
 
 let usuarioActual = null;
-let modoOculto = false;
 let listaServiciosCache = [];
 let contadorFrecuenciaServicios = {};
 let categoriaActiva = 'TODOS';
@@ -84,7 +81,7 @@ function iniciarSesionUI() {
     cargarDatosAdmin();
   } else {
     document.getElementById('nav-admin').style.display = 'none';
-    verSeccion('usuaria');
+    verSeccion('servicios');
     escucharServiciosYFrecuencia();
     escucharRegistrosUsuaria();
     escucharAvisosAdmin();
@@ -94,9 +91,9 @@ function iniciarSesionUI() {
 function cerrarSesion() {
   usuarioActual = null;
   document.getElementById('sec-login').style.display = 'block';
-  document.getElementById('sec-usuaria').style.display = 'none';
-  document.getElementById('sec-finanzas').style.display = 'none';
-  document.getElementById('sec-historial').style.display = 'none';
+  document.getElementById('sec-servicios').style.display = 'none';
+  document.getElementById('sec-adelantos').style.display = 'none';
+  document.getElementById('sec-cobrar').style.display = 'none';
   document.getElementById('sec-admin').style.display = 'none';
   document.getElementById('main-nav').style.display = 'none';
   const formLogin = document.getElementById('form-login');
@@ -104,29 +101,17 @@ function cerrarSesion() {
 }
 
 function verSeccion(sec) {
-  const secUsuaria = document.getElementById('sec-usuaria');
-  const secFinanzas = document.getElementById('sec-finanzas');
-  const secHistorial = document.getElementById('sec-historial');
-  const secAdmin = document.getElementById('sec-admin');
-
-  if (secUsuaria) secUsuaria.style.display = sec === 'usuaria' ? 'block' : 'none';
-  if (secFinanzas) secFinanzas.style.display = sec === 'finanzas' ? 'block' : 'none';
-  if (secHistorial) secHistorial.style.display = sec === 'historial' ? 'block' : 'none';
-  if (secAdmin) secAdmin.style.display = sec === 'admin' ? 'block' : 'none';
+  document.getElementById('sec-servicios').style.display = sec === 'servicios' ? 'block' : 'none';
+  document.getElementById('sec-adelantos').style.display = sec === 'adelantos' ? 'block' : 'none';
+  document.getElementById('sec-cobrar').style.display = sec === 'cobrar' ? 'block' : 'none';
+  document.getElementById('sec-admin').style.display = sec === 'admin' ? 'block' : 'none';
 
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
   const btnActivo = document.getElementById(`nav-${sec}`);
   if (btnActivo) btnActivo.classList.add('active');
-
-  if (sec === 'historial') cargarHistorialPorFecha();
 }
 
-function togglePrivacidad() {
-  modoOculto = !modoOculto;
-  actualizarUIComisiones();
-}
-
-// CATÁLOGO Y TARJETAS GRANDES
+// CATÁLOGO Y SERVICIOS
 function escucharServiciosYFrecuencia() {
   db.collection('servicios').onSnapshot(snapshot => {
     listaServiciosCache = [];
@@ -166,16 +151,14 @@ function renderizarTarjetasServicios() {
     filtrados.sort((a,b) => (contadorFrecuenciaServicios[b.id] || 0) - (contadorFrecuenciaServicios[a.id] || 0));
   }
 
-  filtrados.forEach((s, index) => {
+  filtrados.forEach((s) => {
     const ganancia = Number(s.precio * (s.comision / 100));
-    const esTop3 = (categoriaActiva === 'TODOS' && index < 3 && (contadorFrecuenciaServicios[s.id] || 0) > 0);
 
     container.innerHTML += `
       <div class="service-card" onclick="registrarServicioRapido('${s.id}', '${s.nombre}', ${s.precio}, ${ganancia}, '${s.categoria}')">
-        ${esTop3 ? '<span class="top3-badge">⭐ TOP MÁS USADO</span>' : ''}
         <h4>${s.nombre}</h4>
         <small style="color: var(--text-muted); font-size: 0.8em; margin-top: 4px;">${s.categoria}</small>
-        <span class="badge-price">${modoOculto ? '$ ****' : '$' + ganancia.toFixed(2)}</span>
+        <span class="badge-price">$${ganancia.toFixed(2)}</span>
       </div>
     `;
   });
@@ -206,9 +189,8 @@ async function registrarServicioRapido(id, nombre, precio, comisionMonto, catego
   }
 }
 
-// ELIMINAR SERVICIO MAL CARGADO
 async function eliminarRegistroServicio(docId) {
-  if (confirm('¿Deseás eliminar este servicio mal cargado?')) {
+  if (confirm('¿Deseás eliminar este servicio mal cargado? Se descontará del total.')) {
     try {
       await db.collection('registros').doc(docId).delete();
     } catch (err) {
@@ -217,10 +199,17 @@ async function eliminarRegistroServicio(docId) {
   }
 }
 
-// LISTA Y FINANZAS
+// CÁLCULOS DÍA A DÍA Y COBRO SEMANAL (LUNES A SÁBADO)
 function escucharRegistrosUsuaria() {
   const hoyInicio = new Date();
   hoyInicio.setHours(0,0,0,0);
+
+  // Obtener rango de la semana actual (Lunes a Sábado)
+  const ahora = new Date();
+  const diaSemana = ahora.getDay(); // 0: Dom, 1: Lun...
+  const diffLunes = ahora.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1);
+  const inicioSemana = new Date(ahora.setDate(diffLunes));
+  inicioSemana.setHours(0,0,0,0);
 
   db.collection('registros')
     .where('usuariaId', '==', usuarioActual.id)
@@ -229,15 +218,30 @@ function escucharRegistrosUsuaria() {
       let totalHoy = 0;
       let totalSemana = 0;
       const tablaHoy = document.getElementById('tabla-hoy-usuaria');
+      const tablaDesglose = document.getElementById('tabla-desglose-semanal');
+      
       if (tablaHoy) tablaHoy.innerHTML = '';
+      if (tablaDesglose) tablaDesglose.innerHTML = '';
+
+      const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      const desgloseDias = { 1: {cant:0, subtotal:0}, 2: {cant:0, subtotal:0}, 3: {cant:0, subtotal:0}, 4: {cant:0, subtotal:0}, 5: {cant:0, subtotal:0}, 6: {cant:0, subtotal:0} };
 
       snapshot.forEach(doc => {
         const r = doc.data();
         const f = r.fecha ? r.fecha.toDate() : new Date();
         const comision = Number(r.comisionMonto || 0);
 
-        totalSemana += comision;
+        // Si pertenece a la semana actual
+        if (f >= inicioSemana) {
+          totalSemana += comision;
+          const numDia = f.getDay();
+          if (desgloseDias[numDia]) {
+            desgloseDias[numDia].cant++;
+            desgloseDias[numDia].subtotal += comision;
+          }
+        }
 
+        // Si es de hoy (Pestaña 1)
         if (f >= hoyInicio) {
           totalHoy += comision;
           if (tablaHoy) {
@@ -245,7 +249,7 @@ function escucharRegistrosUsuaria() {
               <tr>
                 <td>${f.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})}</td>
                 <td><strong>${r.servicioNombre}</strong> <small>(${r.categoria})</small></td>
-                <td><span class="badge">${modoOculto ? '$ ****' : '$' + comision.toFixed(2)}</span></td>
+                <td><span class="badge">$${comision.toFixed(2)}</span></td>
                 <td><button class="btn-del-item" onclick="eliminarRegistroServicio('${doc.id}')">❌ Borrar</button></td>
               </tr>
             `;
@@ -253,39 +257,71 @@ function escucharRegistrosUsuaria() {
         }
       });
 
+      // Sumatoria arriba a un costado (Pestaña 1)
+      const elemSumDia = document.getElementById('sum-dia-top');
+      if (elemSumDia) elemSumDia.innerText = `$ ${totalHoy.toFixed(2)}`;
+
+      // Renderizar desglose diario (Pestaña 3)
+      for (let d = 1; d <= 6; d++) {
+        if (tablaDesglose) {
+          tablaDesglose.innerHTML += `
+            <tr>
+              <td><strong>${diasNombres[d]}</strong></td>
+              <td>${desgloseDias[d].cant} servicios</td>
+              <td>$${desgloseDias[d].subtotal.toFixed(2)}</td>
+            </tr>
+          `;
+        }
+      }
+
       usuarioActual.totalHoy = totalHoy;
       usuarioActual.totalSemana = totalSemana;
-      actualizarUIComisiones();
+      actualizarTotalesFinanzas();
     });
 
+  // Escuchar Adelantos
   db.collection('adelantos')
     .where('usuariaId', '==', usuarioActual.id)
     .onSnapshot(snapshot => {
       let totalAdelantos = 0;
+      const tablaAdelantos = document.getElementById('tabla-adelantos-semana');
+      if (tablaAdelantos) tablaAdelantos.innerHTML = '';
+
       snapshot.forEach(doc => {
-        totalAdelantos += Number(doc.data().monto || 0);
+        const a = doc.data();
+        const f = a.fecha ? a.fecha.toDate() : new Date();
+        const monto = Number(a.monto || 0);
+
+        totalAdelantos += monto;
+
+        if (tablaAdelantos) {
+          tablaAdelantos.innerHTML += `
+            <tr>
+              <td>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})}</td>
+              <td><strong style="color: var(--warning-color);">$ ${monto.toFixed(2)}</strong></td>
+            </tr>
+          `;
+        }
       });
+
       usuarioActual.totalAdelantos = totalAdelantos;
-      actualizarUIComisiones();
+      actualizarTotalesFinanzas();
     });
 }
 
-function actualizarUIComisiones() {
+function actualizarTotalesFinanzas() {
   if (!usuarioActual) return;
-  const hoy = Number(usuarioActual.totalHoy || 0);
   const sem = Number(usuarioActual.totalSemana || 0);
   const ade = Number(usuarioActual.totalAdelantos || 0);
   const neto = sem - ade;
 
-  const elemHoy = document.getElementById('kpi-hoy');
-  const elemSem = document.getElementById('kpi-semana');
-  const elemAde = document.getElementById('kpi-adelantos');
-  const elemNeto = document.getElementById('kpi-total-cobrar');
+  const elemSem = document.getElementById('res-total-semanal');
+  const elemAde = document.getElementById('res-total-adelantos');
+  const elemNeto = document.getElementById('res-saldo-neto');
 
-  if (elemHoy) elemHoy.innerText = modoOculto ? '$ ****' : `$${hoy.toFixed(2)}`;
-  if (elemSem) elemSem.innerText = modoOculto ? '$ ****' : `$${sem.toFixed(2)}`;
-  if (elemAde) elemAde.innerText = modoOculto ? '$ ****' : `$${ade.toFixed(2)}`;
-  if (elemNeto) elemNeto.innerText = modoOculto ? '$ ****' : `$${neto.toFixed(2)}`;
+  if (elemSem) elemSem.innerText = `$ ${sem.toFixed(2)}`;
+  if (elemAde) elemAde.innerText = `$ ${ade.toFixed(2)}`;
+  if (elemNeto) elemNeto.innerText = `$ ${neto.toFixed(2)}`;
 }
 
 async function solicitarAdelanto() {
@@ -310,42 +346,8 @@ async function solicitarAdelanto() {
 function cerrarJornadaDiaria() {
   if (confirm('¿Deseás marcar el FIN DEL SERVICIO de hoy? Las cargas de servicios quedarán congeladas hasta mañana.')) {
     usuarioActual.jornadaCerrada = true;
-    const elemEstado = document.getElementById('label-estado-dia');
-    if (elemEstado) {
-      elemEstado.innerText = 'Jornada Cerrada 🔒';
-      elemEstado.style.background = 'var(--danger-color)';
-    }
     alert('Jornada finalizada correctamente.');
   }
-}
-
-// HISTÓRICO
-async function cargarHistorialPorFecha() {
-  const elemFecha = document.getElementById('filtro-fecha-historial');
-  const inputFecha = elemFecha ? elemFecha.value : '';
-  const tbody = document.getElementById('tabla-historial-completo');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  let query = db.collection('registros').where('usuariaId', '==', usuarioActual.id).orderBy('fecha', 'desc');
-  const snapshot = await query.get();
-
-  snapshot.forEach(doc => {
-    const r = doc.data();
-    const f = r.fecha ? r.fecha.toDate() : new Date();
-    const fechaStr = f.toISOString().split('T')[0];
-
-    if (!inputFecha || inputFecha === fechaStr) {
-      tbody.innerHTML += `
-        <tr>
-          <td>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})}</td>
-          <td><strong>${r.servicioNombre}</strong></td>
-          <td>${r.categoria}</td>
-          <td><span class="badge">$${Number(r.comisionMonto || 0).toFixed(2)}</span></td>
-        </tr>
-      `;
-    }
-  });
 }
 
 function escucharAvisosAdmin() {
@@ -362,7 +364,7 @@ function escucharAvisosAdmin() {
   });
 }
 
-// EXCLUSIVO ADMIN
+// FUNCIONES ADMIN
 function cargarDatosAdmin() {
   db.collection('usuarios').onSnapshot(snap => {
     const tbody = document.getElementById('tabla-admin-usuarios');
@@ -375,7 +377,7 @@ function cargarDatosAdmin() {
           <td><strong>${u.nombre}</strong></td>
           <td>${u.login}</td>
           <td>${Array.isArray(u.especialidades) ? u.especialidades.join(', ') : u.especialidades}</td>
-          <td><button class="btn btn-danger" style="padding: 4px 8px;" onclick="eliminarEntidad('usuarios', '${doc.id}')">Eliminar</button></td>
+          <td><button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarEntidad('usuarios', '${doc.id}')">Eliminar</button></td>
         </tr>
       `;
     });
@@ -395,7 +397,7 @@ function cargarDatosAdmin() {
           <td>$${Number(s.precio).toFixed(2)}</td>
           <td>${s.comision}%</td>
           <td>$${ganancia.toFixed(2)}</td>
-          <td><button class="btn btn-danger" style="padding: 4px 8px;" onclick="eliminarEntidad('servicios', '${doc.id}')">Eliminar</button></td>
+          <td><button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarEntidad('servicios', '${doc.id}')">Eliminar</button></td>
         </tr>
       `;
     });
