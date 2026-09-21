@@ -1,3 +1,6 @@
+// ==========================================
+// CONFIGURACIÓN DE FIREBASE
+// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyBOGjCbKMiu0Sy5kTNgm0O1xR9sySML2bU",
   authDomain: "sin-analytics-84167.firebaseapp.com",
@@ -16,7 +19,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW error:', e));
 }
 
-// Globales de sesión
+// Variables Globales de Sesión
 let usuarioActual = null;
 let modoOculto = false;
 let listaServiciosCache = [];
@@ -27,60 +30,72 @@ let categoriaActiva = 'TODOS';
 function iniciarReloj() {
   setInterval(() => {
     const ahora = new Date();
-    document.getElementById('clock-date').innerText = ahora.toLocaleDateString('es-AR');
-    document.getElementById('clock-time').innerText = ahora.toLocaleTimeString('es-AR');
+    const elemFecha = document.getElementById('clock-date');
+    const elemHora = document.getElementById('clock-time');
+    if (elemFecha) elemFecha.innerText = ahora.toLocaleDateString('es-AR');
+    if (elemHora) elemHora.innerText = ahora.toLocaleTimeString('es-AR');
   }, 1000);
 }
 iniciarReloj();
 
 // ==========================================
-// AUTENTICACIÓN Y LOGIN DE CREDENCIALES
+// AUTENTICACIÓN Y LOGIN
 // ==========================================
-document.getElementById('form-login').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const userInput = document.getElementById('login-user').value.trim().toLowerCase();
-  const passInput = document.getElementById('login-pass').value.trim();
+document.addEventListener('DOMContentLoaded', () => {
+  const formLogin = document.getElementById('form-login');
+  if (formLogin) {
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userInput = document.getElementById('login-user').value.trim().toLowerCase();
+      const passInput = document.getElementById('login-pass').value.trim();
 
-  // Acceso directo Admin (Nelson)
-  if (userInput === 'admin' && passInput === 'admin123') {
-    usuarioActual = { 
-      id: 'admin', 
-      nombre: 'Nelson (Admin)', 
-      login: 'admin', 
-      rol: 'admin', 
-      especialidades: ['Manicura','Pedicuria','Depilacion','Otros'] 
-    };
-    iniciarSesionUI();
-    return;
-  }
+      // Acceso Admin
+      if ((userInput === 'admin' && passInput === 'admin123') || (userInput === 'nel' && passInput === 'nel2026abc')) {
+        usuarioActual = { 
+          id: 'admin', 
+          nombre: 'Nelson (Admin)', 
+          login: userInput, 
+          rol: 'admin', 
+          especialidades: ['Manicura','Pedicuria','Depilacion','Otros'] 
+        };
+        iniciarSesionUI();
+        return;
+      }
 
-  // Consulta en Firestore para usuarias
-  try {
-    const q = await db.collection('usuarios').where('login', '==', userInput).where('pass', '==', passInput).get();
-    if (!q.empty) {
-      const doc = q.docs[0];
-      const data = doc.data();
-      usuarioActual = { id: doc.id, ...data, rol: 'usuaria' };
-      iniciarSesionUI();
-    } else {
-      alert('Usuario o contraseña incorrectos.');
-    }
-  } catch (err) {
-    alert('Error al autenticar: ' + err.message);
+      // Consulta en Firestore para usuarias
+      try {
+        const q = await db.collection('usuarios').where('login', '==', userInput).where('pass', '==', passInput).get();
+        if (!q.empty) {
+          const doc = q.docs[0];
+          const data = doc.data();
+          usuarioActual = { id: doc.id, ...data, rol: 'usuaria' };
+          iniciarSesionUI();
+        } else {
+          alert('Usuario o contraseña incorrectos.');
+        }
+      } catch (err) {
+        alert('Error al autenticar: ' + err.message);
+      }
+    });
   }
 });
 
 function iniciarSesionUI() {
-  document.getElementById('sec-login').style.display = 'none';
-  document.getElementById('main-nav').style.display = 'flex';
-  document.getElementById('user-role-label').innerText = `${usuarioActual.nombre} (${usuarioActual.rol.toUpperCase()})`;
+  const secLogin = document.getElementById('sec-login');
+  const mainNav = document.getElementById('main-nav');
+  const userRoleLabel = document.getElementById('user-role-label');
+  const navAdmin = document.getElementById('nav-admin');
+
+  if (secLogin) secLogin.style.display = 'none';
+  if (mainNav) mainNav.style.display = 'flex';
+  if (userRoleLabel) userRoleLabel.innerText = `${usuarioActual.nombre} (${usuarioActual.rol.toUpperCase()})`;
 
   if (usuarioActual.rol === 'admin') {
-    document.getElementById('nav-admin').style.display = 'block';
+    if (navAdmin) navAdmin.style.display = 'block';
     verSeccion('admin');
     cargarDatosAdmin();
   } else {
-    document.getElementById('nav-admin').style.display = 'none';
+    if (navAdmin) navAdmin.style.display = 'none';
     verSeccion('usuaria');
     escucharServiciosYFrecuencia();
     escucharRegistrosUsuaria();
@@ -95,18 +110,22 @@ function cerrarSesion() {
   document.getElementById('sec-historial').style.display = 'none';
   document.getElementById('sec-admin').style.display = 'none';
   document.getElementById('main-nav').style.display = 'none';
-  document.getElementById('form-login').reset();
+  const formLogin = document.getElementById('form-login');
+  if (formLogin) formLogin.reset();
 }
 
 function verSeccion(sec) {
-  document.getElementById('sec-usuaria').style.display = sec === 'usuaria' ? 'block' : 'none';
-  document.getElementById('sec-historial').style.display = sec === 'historial' ? 'block' : 'none';
-  document.getElementById('sec-admin').style.display = sec === 'admin' ? 'block' : 'none';
+  const secUsuaria = document.getElementById('sec-usuaria');
+  const secHistorial = document.getElementById('sec-historial');
+  const secAdmin = document.getElementById('sec-admin');
+
+  if (secUsuaria) secUsuaria.style.display = sec === 'usuaria' ? 'block' : 'none';
+  if (secHistorial) secHistorial.style.display = sec === 'historial' ? 'block' : 'none';
+  if (secAdmin) secAdmin.style.display = sec === 'admin' ? 'block' : 'none';
 
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-  if (document.getElementById(`nav-${sec}`)) {
-    document.getElementById(`nav-${sec}`).classList.add('active');
-  }
+  const btnActivo = document.getElementById(`nav-${sec}`);
+  if (btnActivo) btnActivo.classList.add('active');
 
   if (sec === 'historial') cargarHistorialPorFecha();
 }
@@ -160,14 +179,16 @@ function renderizarTarjetasServicios() {
   }
 
   filtrados.forEach((s, index) => {
-    const ganancia = (s.precio * (s.comision / 100)).toFixed(2);
+    const ganancia = Number(s.precio * (s.comision / 100));
     const esTop3 = (categoriaActiva === 'TODOS' && index < 3 && (contadorFrecuenciaServicios[s.id] || 0) > 0);
 
+    // Botones más grandes con padding táctil amplio
     container.innerHTML += `
-      <div class="service-card" onclick="registrarServicioRapido('${s.id}', '${s.nombre}', ${s.precio}, ${ganancia}, '${s.categoria}')">
+      <div class="service-card" style="padding: 18px 12px; min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;" onclick="registrarServicioRapido('${s.id}', '${s.nombre}', ${s.precio}, ${ganancia}, '${s.categoria}')">
         ${esTop3 ? '<span class="top3-badge">⭐ TOP MÁS USADO</span>' : ''}
-        <h4>${s.nombre}</h4>
-        <span class="badge-price">${modoOculto ? '$ ****' : '$' + ganancia}</span>
+        <h4 style="font-size: 1.05em; margin: 4px 0;">${s.nombre}</h4>
+        <small style="color: var(--text-muted); font-size: 0.75em;">${s.categoria}</small>
+        <span class="badge-price" style="font-size: 1em; padding: 6px 12px; margin-top: 6px; width: 100%; border-radius: 6px;">${modoOculto ? '$ ****' : '$' + ganancia.toFixed(2)}</span>
       </div>
     `;
   });
@@ -186,8 +207,8 @@ async function registrarServicioRapido(id, nombre, precio, comisionMonto, catego
       servicioId: id,
       servicioNombre: nombre,
       categoria: categoria,
-      precioTotal: precio,
-      comisionMonto: parseFloat(comisionMonto),
+      precioTotal: Number(precio),
+      comisionMonto: Number(comisionMonto),
       fecha: new Date()
     });
 
@@ -205,6 +226,7 @@ function escucharRegistrosUsuaria() {
   const hoyInicio = new Date();
   hoyInicio.setHours(0,0,0,0);
 
+  // Carga de registros de trabajo
   db.collection('registros')
     .where('usuariaId', '==', usuarioActual.id)
     .orderBy('fecha', 'desc')
@@ -217,17 +239,18 @@ function escucharRegistrosUsuaria() {
       snapshot.forEach(doc => {
         const r = doc.data();
         const f = r.fecha ? r.fecha.toDate() : new Date();
+        const comision = Number(r.comisionMonto || 0);
 
-        totalSemana += r.comisionMonto || 0;
+        totalSemana += comision;
 
         if (f >= hoyInicio) {
-          totalHoy += r.comisionMonto || 0;
+          totalHoy += comision;
           if (tablaHoy) {
             tablaHoy.innerHTML += `
               <tr>
                 <td>${f.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})}</td>
-                <td><strong>${r.servicioNombre}</strong></td>
-                <td><span class="badge">${modoOculto ? '$ ****' : '$' + r.comisionMonto.toFixed(2)}</span></td>
+                <td><strong>${r.servicioNombre}</strong> <small>(${r.categoria})</small></td>
+                <td><span class="badge">${modoOculto ? '$ ****' : '$' + comision.toFixed(2)}</span></td>
               </tr>
             `;
           }
@@ -239,11 +262,14 @@ function escucharRegistrosUsuaria() {
       actualizarUIComisiones();
     });
 
+  // Carga de adelantos (no interrumpe la carga de registros)
   db.collection('adelantos')
     .where('usuariaId', '==', usuarioActual.id)
     .onSnapshot(snapshot => {
       let totalAdelantos = 0;
-      snapshot.forEach(doc => totalAdelantos += doc.data().monto || 0);
+      snapshot.forEach(doc => {
+        totalAdelantos += Number(doc.data().monto || 0);
+      });
       usuarioActual.totalAdelantos = totalAdelantos;
       actualizarUIComisiones();
     });
@@ -251,9 +277,9 @@ function escucharRegistrosUsuaria() {
 
 function actualizarUIComisiones() {
   if (!usuarioActual) return;
-  const hoy = usuarioActual.totalHoy || 0;
-  const sem = usuarioActual.totalSemana || 0;
-  const ade = usuarioActual.totalAdelantos || 0;
+  const hoy = Number(usuarioActual.totalHoy || 0);
+  const sem = Number(usuarioActual.totalSemana || 0);
+  const ade = Number(usuarioActual.totalAdelantos || 0);
   const neto = sem - ade;
 
   const elemHoy = document.getElementById('kpi-hoy');
@@ -265,8 +291,6 @@ function actualizarUIComisiones() {
   if (elemSem) elemSem.innerText = modoOculto ? '$ ****' : `$${sem.toFixed(2)}`;
   if (elemAde) elemAde.innerText = modoOculto ? '$ ****' : `$${ade.toFixed(2)}`;
   if (elemNeto) elemNeto.innerText = modoOculto ? '$ ****' : `$${neto.toFixed(2)}`;
-
-  renderizarTarjetasServicios();
 }
 
 async function solicitarAdelanto() {
@@ -278,7 +302,7 @@ async function solicitarAdelanto() {
     await db.collection('adelantos').add({
       usuariaId: usuarioActual.id,
       usuariaNombre: usuarioActual.nombre,
-      monto: monto,
+      monto: Number(monto),
       fecha: new Date()
     });
     input.value = '';
@@ -291,15 +315,19 @@ async function solicitarAdelanto() {
 function cerrarJornadaDiaria() {
   if (confirm('¿Deseás marcar el FIN DEL SERVICIO de hoy? Las cargas de servicios quedarán congeladas hasta mañana.')) {
     usuarioActual.jornadaCerrada = true;
-    document.getElementById('label-estado-dia').innerText = 'Jornada Cerrada 🔒';
-    document.getElementById('label-estado-dia').style.background = 'var(--danger-color)';
+    const elemEstado = document.getElementById('label-estado-dia');
+    if (elemEstado) {
+      elemEstado.innerText = 'Jornada Cerrada 🔒';
+      elemEstado.style.background = 'var(--danger-color)';
+    }
     alert('Jornada finalizada correctamente.');
   }
 }
 
 // Histórico / Calendario
 async function cargarHistorialPorFecha() {
-  const inputFecha = document.getElementById('filtro-fecha-historial').value;
+  const elemFecha = document.getElementById('filtro-fecha-historial');
+  const inputFecha = elemFecha ? elemFecha.value : '';
   const tbody = document.getElementById('tabla-historial-completo');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -318,7 +346,7 @@ async function cargarHistorialPorFecha() {
           <td>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})}</td>
           <td><strong>${r.servicioNombre}</strong></td>
           <td>${r.categoria}</td>
-          <td><span class="badge">$${r.comisionMonto.toFixed(2)}</span></td>
+          <td><span class="badge">$${Number(r.comisionMonto || 0).toFixed(2)}</span></td>
         </tr>
       `;
     }
@@ -331,8 +359,10 @@ function escucharAvisosAdmin() {
     if (doc.exists) {
       const data = doc.data();
       if (data.texto) {
-        document.getElementById('alert-msg').innerText = data.texto;
-        document.getElementById('alert-banner').style.display = 'block';
+        const elemMsg = document.getElementById('alert-msg');
+        const elemBanner = document.getElementById('alert-banner');
+        if (elemMsg) elemMsg.innerText = data.texto;
+        if (elemBanner) elemBanner.style.display = 'block';
       }
     }
   });
@@ -365,14 +395,14 @@ function cargarDatosAdmin() {
     tbody.innerHTML = '';
     snap.forEach(doc => {
       const s = doc.data();
-      const ganancia = (s.precio * (s.comision / 100)).toFixed(2);
+      const ganancia = Number(s.precio * (s.comision / 100));
       tbody.innerHTML += `
         <tr>
           <td><span class="badge">${s.categoria}</span></td>
           <td><strong>${s.nombre}</strong></td>
-          <td>$${s.precio.toFixed(2)}</td>
+          <td>$${Number(s.precio).toFixed(2)}</td>
           <td>${s.comision}%</td>
-          <td>$${ganancia}</td>
+          <td>$${ganancia.toFixed(2)}</td>
           <td><button class="btn btn-danger" style="padding: 4px 8px;" onclick="eliminarEntidad('servicios', '${doc.id}')">Eliminar</button></td>
         </tr>
       `;
@@ -390,49 +420,58 @@ function cargarDatosAdmin() {
         <tr>
           <td>${f}</td>
           <td><strong>${r.usuariaNombre}</strong></td>
-          <td>${r.servicioNombre}</td>
-          <td>$${(r.precioTotal || 0).toFixed(2)}</td>
-          <td><span class="badge">$${(r.comisionMonto || 0).toFixed(2)}</span></td>
+          <td>${r.servicioNombre} (${r.categoria})</td>
+          <td>$${Number(r.precioTotal || 0).toFixed(2)}</td>
+          <td><span class="badge">$${Number(r.comisionMonto || 0).toFixed(2)}</span></td>
         </tr>
       `;
     });
   });
+
+  const formCrearUser = document.getElementById('form-crear-usuario');
+  if (formCrearUser && !formCrearUser.dataset.listener) {
+    formCrearUser.dataset.listener = "true";
+    formCrearUser.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('nuevo-usr-nombre').value.trim();
+      const login = document.getElementById('nuevo-usr-login').value.trim().toLowerCase();
+      const pass = document.getElementById('nuevo-usr-pass').value.trim();
+      const especialidadesSelect = document.getElementById('nuevo-usr-especialidades').value;
+      const especialidades = especialidadesSelect.split(',');
+
+      try {
+        await db.collection('usuarios').add({ nombre, login, pass, especialidades });
+        formCrearUser.reset();
+        alert('Usuaria registrada con éxito.');
+      } catch (err) { alert('Error: ' + err.message); }
+    });
+  }
+
+  const formCrearServ = document.getElementById('form-crear-servicio');
+  if (formCrearServ && !formCrearServ.dataset.listener) {
+    formCrearServ.dataset.listener = "true";
+    formCrearServ.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('serv-nombre').value.trim();
+      const categoria = document.getElementById('serv-categoria').value;
+      const precio = parseFloat(document.getElementById('serv-precio').value);
+      const comision = parseFloat(document.getElementById('serv-comision').value);
+
+      try {
+        await db.collection('servicios').add({ nombre, categoria, precio, comision });
+        formCrearServ.reset();
+        alert('Servicio agregado al catálogo.');
+      } catch (err) { alert('Error: ' + err.message); }
+    });
+  }
 }
 
-document.getElementById('form-crear-usuario').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const nombre = document.getElementById('nuevo-usr-nombre').value.trim();
-  const login = document.getElementById('nuevo-usr-login').value.trim().toLowerCase();
-  const pass = document.getElementById('nuevo-usr-pass').value.trim();
-  const especialidadesSelect = document.getElementById('nuevo-usr-especialidades').value;
-  const especialidades = especialidadesSelect.split(',');
-
-  try {
-    await db.collection('usuarios').add({ nombre, login, pass, especialidades });
-    document.getElementById('form-crear-usuario').reset();
-    alert('Usuaria registrada con éxito.');
-  } catch (err) { alert('Error: ' + err.message); }
-});
-
-document.getElementById('form-crear-servicio').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const nombre = document.getElementById('serv-nombre').value.trim();
-  const categoria = document.getElementById('serv-categoria').value;
-  const precio = parseFloat(document.getElementById('serv-precio').value);
-  const comision = parseFloat(document.getElementById('serv-comision').value);
-
-  try {
-    await db.collection('servicios').add({ nombre, categoria, precio, comision });
-    document.getElementById('form-crear-servicio').reset();
-    alert('Servicio agregado al catálogo.');
-  } catch (err) { alert('Error: ' + err.message); }
-});
-
 async function publicarAvisoAdmin() {
-  const texto = document.getElementById('admin-aviso-texto').value.trim();
+  const elemAviso = document.getElementById('admin-aviso-texto');
+  const texto = elemAviso ? elemAviso.value.trim() : '';
   if (!texto) return;
   await db.collection('avisos').doc('ultimo_aviso').set({ texto, fecha: new Date() });
-  document.getElementById('admin-aviso-texto').value = '';
+  if (elemAviso) elemAviso.value = '';
   alert('Aviso difundido a las chicas.');
 }
 
