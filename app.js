@@ -1,6 +1,3 @@
-// ==========================================
-// CONFIGURACIÓN DE FIREBASE (CON TUS CLAVES)
-// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyBOGjCbKMiu0Sy5kTNgm0O1xR9sySML2bU",
   authDomain: "sin-analytics-84167.firebaseapp.com",
