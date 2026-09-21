@@ -14,19 +14,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Service Worker PWA v1.0.1
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW error:', e));
 }
 
-// Variables Globales de Sesión
 let usuarioActual = null;
 let modoOculto = false;
 let listaServiciosCache = [];
 let contadorFrecuenciaServicios = {};
 let categoriaActiva = 'TODOS';
 
-// Reloj en Tiempo Real
 function iniciarReloj() {
   setInterval(() => {
     const ahora = new Date();
@@ -38,9 +35,7 @@ function iniciarReloj() {
 }
 iniciarReloj();
 
-// ==========================================
-// AUTENTICACIÓN Y LOGIN
-// ==========================================
+// AUTENTICACIÓN
 document.addEventListener('DOMContentLoaded', () => {
   const formLogin = document.getElementById('form-login');
   if (formLogin) {
@@ -49,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const userInput = document.getElementById('login-user').value.trim().toLowerCase();
       const passInput = document.getElementById('login-pass').value.trim();
 
-      // Acceso Admin
       if ((userInput === 'admin' && passInput === 'admin123') || (userInput === 'nel' && passInput === 'nel2026abc')) {
         usuarioActual = { 
           id: 'admin', 
@@ -62,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Consulta en Firestore para usuarias
       try {
         const q = await db.collection('usuarios').where('login', '==', userInput).where('pass', '==', passInput).get();
         if (!q.empty) {
@@ -81,21 +74,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function iniciarSesionUI() {
-  const secLogin = document.getElementById('sec-login');
-  const mainNav = document.getElementById('main-nav');
-  const userRoleLabel = document.getElementById('user-role-label');
-  const navAdmin = document.getElementById('nav-admin');
-
-  if (secLogin) secLogin.style.display = 'none';
-  if (mainNav) mainNav.style.display = 'flex';
-  if (userRoleLabel) userRoleLabel.innerText = `${usuarioActual.nombre} (${usuarioActual.rol.toUpperCase()})`;
+  document.getElementById('sec-login').style.display = 'none';
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('user-role-label').innerText = `${usuarioActual.nombre} (${usuarioActual.rol.toUpperCase()})`;
 
   if (usuarioActual.rol === 'admin') {
-    if (navAdmin) navAdmin.style.display = 'block';
+    document.getElementById('nav-admin').style.display = 'block';
     verSeccion('admin');
     cargarDatosAdmin();
   } else {
-    if (navAdmin) navAdmin.style.display = 'none';
+    document.getElementById('nav-admin').style.display = 'none';
     verSeccion('usuaria');
     escucharServiciosYFrecuencia();
     escucharRegistrosUsuaria();
@@ -107,6 +95,7 @@ function cerrarSesion() {
   usuarioActual = null;
   document.getElementById('sec-login').style.display = 'block';
   document.getElementById('sec-usuaria').style.display = 'none';
+  document.getElementById('sec-finanzas').style.display = 'none';
   document.getElementById('sec-historial').style.display = 'none';
   document.getElementById('sec-admin').style.display = 'none';
   document.getElementById('main-nav').style.display = 'none';
@@ -116,10 +105,12 @@ function cerrarSesion() {
 
 function verSeccion(sec) {
   const secUsuaria = document.getElementById('sec-usuaria');
+  const secFinanzas = document.getElementById('sec-finanzas');
   const secHistorial = document.getElementById('sec-historial');
   const secAdmin = document.getElementById('sec-admin');
 
   if (secUsuaria) secUsuaria.style.display = sec === 'usuaria' ? 'block' : 'none';
+  if (secFinanzas) secFinanzas.style.display = sec === 'finanzas' ? 'block' : 'none';
   if (secHistorial) secHistorial.style.display = sec === 'historial' ? 'block' : 'none';
   if (secAdmin) secAdmin.style.display = sec === 'admin' ? 'block' : 'none';
 
@@ -130,15 +121,12 @@ function verSeccion(sec) {
   if (sec === 'historial') cargarHistorialPorFecha();
 }
 
-// Modo Incógnito / Ojo 👁️
 function togglePrivacidad() {
   modoOculto = !modoOculto;
   actualizarUIComisiones();
 }
 
-// ==========================================
-// CARGA Y REGISTRO DE SERVICIOS (USUARIAS)
-// ==========================================
+// CATÁLOGO Y TARJETAS GRANDES
 function escucharServiciosYFrecuencia() {
   db.collection('servicios').onSnapshot(snapshot => {
     listaServiciosCache = [];
@@ -182,13 +170,12 @@ function renderizarTarjetasServicios() {
     const ganancia = Number(s.precio * (s.comision / 100));
     const esTop3 = (categoriaActiva === 'TODOS' && index < 3 && (contadorFrecuenciaServicios[s.id] || 0) > 0);
 
-    // Botones más grandes con padding táctil amplio
     container.innerHTML += `
-      <div class="service-card" style="padding: 18px 12px; min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;" onclick="registrarServicioRapido('${s.id}', '${s.nombre}', ${s.precio}, ${ganancia}, '${s.categoria}')">
+      <div class="service-card" onclick="registrarServicioRapido('${s.id}', '${s.nombre}', ${s.precio}, ${ganancia}, '${s.categoria}')">
         ${esTop3 ? '<span class="top3-badge">⭐ TOP MÁS USADO</span>' : ''}
-        <h4 style="font-size: 1.05em; margin: 4px 0;">${s.nombre}</h4>
-        <small style="color: var(--text-muted); font-size: 0.75em;">${s.categoria}</small>
-        <span class="badge-price" style="font-size: 1em; padding: 6px 12px; margin-top: 6px; width: 100%; border-radius: 6px;">${modoOculto ? '$ ****' : '$' + ganancia.toFixed(2)}</span>
+        <h4>${s.nombre}</h4>
+        <small style="color: var(--text-muted); font-size: 0.8em; margin-top: 4px;">${s.categoria}</small>
+        <span class="badge-price">${modoOculto ? '$ ****' : '$' + ganancia.toFixed(2)}</span>
       </div>
     `;
   });
@@ -219,14 +206,22 @@ async function registrarServicioRapido(id, nombre, precio, comisionMonto, catego
   }
 }
 
-// ==========================================
-// REGISTROS, FIN DE JORNADA Y ADELANTOS
-// ==========================================
+// ELIMINAR SERVICIO MAL CARGADO
+async function eliminarRegistroServicio(docId) {
+  if (confirm('¿Deseás eliminar este servicio mal cargado?')) {
+    try {
+      await db.collection('registros').doc(docId).delete();
+    } catch (err) {
+      alert('Error al eliminar registro: ' + err.message);
+    }
+  }
+}
+
+// LISTA Y FINANZAS
 function escucharRegistrosUsuaria() {
   const hoyInicio = new Date();
   hoyInicio.setHours(0,0,0,0);
 
-  // Carga de registros de trabajo
   db.collection('registros')
     .where('usuariaId', '==', usuarioActual.id)
     .orderBy('fecha', 'desc')
@@ -251,6 +246,7 @@ function escucharRegistrosUsuaria() {
                 <td>${f.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})}</td>
                 <td><strong>${r.servicioNombre}</strong> <small>(${r.categoria})</small></td>
                 <td><span class="badge">${modoOculto ? '$ ****' : '$' + comision.toFixed(2)}</span></td>
+                <td><button class="btn-del-item" onclick="eliminarRegistroServicio('${doc.id}')">❌ Borrar</button></td>
               </tr>
             `;
           }
@@ -262,7 +258,6 @@ function escucharRegistrosUsuaria() {
       actualizarUIComisiones();
     });
 
-  // Carga de adelantos (no interrumpe la carga de registros)
   db.collection('adelantos')
     .where('usuariaId', '==', usuarioActual.id)
     .onSnapshot(snapshot => {
@@ -324,7 +319,7 @@ function cerrarJornadaDiaria() {
   }
 }
 
-// Histórico / Calendario
+// HISTÓRICO
 async function cargarHistorialPorFecha() {
   const elemFecha = document.getElementById('filtro-fecha-historial');
   const inputFecha = elemFecha ? elemFecha.value : '';
@@ -353,7 +348,6 @@ async function cargarHistorialPorFecha() {
   });
 }
 
-// Avisos / Alertas en Vivo
 function escucharAvisosAdmin() {
   db.collection('avisos').doc('ultimo_aviso').onSnapshot(doc => {
     if (doc.exists) {
@@ -368,9 +362,7 @@ function escucharAvisosAdmin() {
   });
 }
 
-// ==========================================
-// FUNCIONES EXCLUSIVAS ADMIN (NELSON)
-// ==========================================
+// EXCLUSIVO ADMIN
 function cargarDatosAdmin() {
   db.collection('usuarios').onSnapshot(snap => {
     const tbody = document.getElementById('tabla-admin-usuarios');
