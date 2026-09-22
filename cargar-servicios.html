@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cargar servicios · Nel App Manicure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F1F7;--surface:#fff;--ink:#2B1733;--muted:#7A6A82;--line:#E7DCEA;--accent:#9E1F63;--accent-soft:#F6DCE9;--danger:#B3261E;
+  --display:'Bricolage Grotesque',sans-serif;--body:'Figtree',sans-serif;box-sizing:border-box}
+*{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--body)}
+.wrap{max-width:560px;margin:0 auto;padding:24px 18px 60px}
+h1{font:700 24px/1.1 var(--display);margin:0 0 4px}
+h2{font:700 17px/1.2 var(--display);margin:22px 0 8px}
+.sub{color:var(--muted);margin:0 0 20px}
+.fld{display:block;margin-bottom:12px}
+.fld span{display:block;font-size:14px;color:var(--muted);margin-bottom:5px}
+.fld input{width:100%;height:46px;border-radius:12px;border:1.5px solid var(--line);background:#fff;padding:0 14px;font-size:16px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:12px 18px;font-weight:600;font-size:16px;min-height:46px;cursor:pointer;width:100%}
+.btn[disabled]{opacity:.6}
+.err{color:var(--danger);min-height:1.2em;font-size:14px;margin:6px 0}
+.ok{color:#1a7a3d;font-weight:600}
+.cathdr{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:18px 2px 6px}
+.list{background:var(--surface);border-radius:14px;overflow:hidden}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:14px}
+.row:first-child{border-top:0}
+.row b{font-weight:600}
+.row span{color:var(--muted);white-space:nowrap}
+.note{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:18px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">Cargando…</div>
+
+<script type="module">
+const firebaseConfig = {
+  apiKey: "AIzaSyBOGjCbKMiu0Sy5kTNgm0O1xR9sySML2bU",
+  authDomain: "sin-analytics-84167.firebaseapp.com",
+  projectId: "sin-analytics-84167",
+  storageBucket: "sin-analytics-84167.firebasestorage.app",
+  messagingSenderId: "381236355122",
+  appId: "1:381236355122:web:7de8e188e40f2e46f65c2b"
+};
+const OWNER_EMAIL = 'nel@nelapp.app';
+const PCT = 30;
+const FB = 'https://www.gstatic.com/firebasejs/10.14.1/';
+const [A, Au, F] = await Promise.all([
+  import(FB + 'firebase-app.js'), import(FB + 'firebase-auth.js'), import(FB + 'firebase-firestore.js')
+]);
+const { doc, getDoc, writeBatch, getFirestore } = F;
+const app = A.initializeApp(firebaseConfig);
+const auth = Au.getAuth(app);
+const db = getFirestore(app);
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const commission = p => Math.round(p * PCT) / 100;
+
+const ITEMS = [
+  { id:'manicuria-manos-comun', category:'Manicuría', name:'Manos Común', price:20000, order:0 },
+  { id:'manicuria-manos-integral-comun', category:'Manicuría', name:'Manos Integral Común', price:24000, order:1 },
+  { id:'manicuria-manos-semipermanente', category:'Manicuría', name:'Manos Semipermanente', price:25000, order:2 },
+  { id:'manicuria-kapping-permanente', category:'Manicuría', name:'Kapping Permanente', price:27000, order:3 },
+  { id:'manicuria-soft-gel', category:'Manicuría', name:'Soft Gel', price:32000, order:4 },
+  { id:'manicuria-dipping', category:'Manicuría', name:'Dipping', price:26000, order:5 },
+  { id:'manicuria-poligel', category:'Manicuría', name:'Poligel', price:35000, order:6 },
+  { id:'manicuria-1-una-kapping-o-press', category:'Manicuría', name:'1 Uña Kapping o Press', price:3000, order:7 },
+  { id:'manicuria-retirado-de-semipermanente', category:'Manicuría', name:'Retirado de Semipermanente', price:3000, order:8 },
+  { id:'pedicuria-pies-comun', category:'Pedicuría', name:'Pies Común', price:22000, order:9 },
+  { id:'pedicuria-pies-permanente', category:'Pedicuría', name:'Pies Permanente', price:32000, order:10 },
+  { id:'pedicuria-pies-integral-comun', category:'Pedicuría', name:'Pies Integral Común', price:31000, order:11 },
+  { id:'pedicuria-pies-integral-permanente', category:'Pedicuría', name:'Pies Integral Permanente', price:35000, order:12 },
+  { id:'pedicuria-podoestetica-comun', category:'Pedicuría', name:'Podoestética Común', price:36000, order:13 },
+  { id:'pedicuria-podoestetica-permanente', category:'Pedicuría', name:'Podoestética Permanente', price:40000, order:14 },
+  { id:'pedicuria-reconstruccion-una-solo-pie', category:'Pedicuría', name:'Reconstrucción Uña Solo Pie', price:4000, order:15 },
+  { id:'disenos-diseno', category:'Diseños', name:'Diseño', price:1000, order:16 },
+  { id:'disenos-diseno-completo', category:'Diseños', name:'Diseño Completo', price:9000, order:17 },
+  { id:'disenos-francesitas', category:'Diseños', name:'Francesitas', price:6000, order:18 },
+  { id:'disenos-ojo-de-gato', category:'Diseños', name:'Ojo de Gato', price:5000, order:19 },
+  { id:'disenos-efecto-baby-boomer', category:'Diseños', name:'Efecto Baby Boomer', price:5000, order:20 },
+  { id:'disenos-efecto-polvo-aurora', category:'Diseños', name:'Efecto Polvo Aurora', price:3000, order:21 },
+  { id:'cejas-y-pestanas-perfilado-de-cejas', category:'Cejas y pestañas', name:'Perfilado de Cejas', price:17000, order:22 },
+  { id:'cejas-y-pestanas-laminado', category:'Cejas y pestañas', name:'Laminado', price:20000, order:23 },
+  { id:'cejas-y-pestanas-lifting', category:'Cejas y pestañas', name:'Lifting', price:25000, order:24 },
+  { id:'cejas-y-pestanas-tinte', category:'Cejas y pestañas', name:'Tinte', price:2500, order:25 },
+  { id:'depilacion-depi-axila', category:'Depilación', name:'Depi Axila', price:15000, order:26 },
+  { id:'depilacion-depi-bozo', category:'Depilación', name:'Depi Bozo', price:9000, order:27 },
+  { id:'depilacion-depi-cavado', category:'Depilación', name:'Depi Cavado', price:10000, order:28 },
+  { id:'depilacion-depi-media-pierna', category:'Depilación', name:'Depi Media Pierna', price:15000, order:29 },
+  { id:'depilacion-depi-menton', category:'Depilación', name:'Depi Mentón', price:5500, order:30 },
+  { id:'depilacion-depi-nariz', category:'Depilación', name:'Depi Nariz', price:9000, order:31 },
+  { id:'depilacion-depi-pelvis-completo', category:'Depilación', name:'Depi Pelvis Completo', price:16500, order:32 },
+  { id:'depilacion-depi-pierna-entera', category:'Depilación', name:'Depi Pierna Entera', price:21000, order:33 },
+  { id:'depilacion-depi-tiro-de-cola', category:'Depilación', name:'Depi Tiro de Cola', price:12000, order:34 },
+  { id:'depilacion-depi-patillas', category:'Depilación', name:'Depi Patillas', price:9000, order:35 },
+];
+
+function groupByCategory() {
+  const g = {};
+  ITEMS.forEach(it => (g[it.category] = g[it.category] || []).push(it));
+  return g;
+}
+
+function previewHtml() {
+  const g = groupByCategory();
+  return Object.keys(g).map(cat =>
+    '<div class="cathdr">' + esc(cat) + '</div><div class="list">' + g[cat].map(it =>
+      '<div class="row"><b>' + esc(it.name) + '</b><span>' + fmt(it.price) + ' · gana ' + fmt(commission(it.price)) + '</span></div>'
+    ).join('') + '</div>'
+  ).join('');
+}
+
+function renderLogin(err) {
+  $('app').innerHTML =
+    '<h1>Cargar servicios</h1><p class="sub">Entrá con tu usuario de dueña para cargar los ' + ITEMS.length + ' servicios de una vez.</p>' +
+    '<form id="lg"><label class="fld"><span>Usuario</span><input id="lg-u" value="nel" autocapitalize="none" autocorrect="off"></label>' +
+    '<label class="fld"><span>Clave</span><input id="lg-p" type="password"></label>' +
+    '<p class="err">' + (err ? esc(err) : '') + '</p>' +
+    '<button class="btn" type="submit">Entrar</button></form>';
+  $('lg').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      await Au.signInWithEmailAndPassword(auth, $('lg-u').value.trim().toLowerCase() + '@nelapp.app', $('lg-p').value);
+    } catch (err) { renderLogin('Usuario o clave incorrectos.'); }
+  });
+}
+
+function renderImport() {
+  $('app').innerHTML =
+    '<h1>Cargar servicios</h1>' +
+    '<div class="note">Comisión fija del ' + PCT + '%. El valor de cada servicio solo lo ves vos; a tu equipo le va a aparecer el nombre y el monto que gana.</div>' +
+    previewHtml() +
+    '<p class="err" id="err"></p>' +
+    '<button class="btn" id="go" style="margin-top:18px">Cargar estos ' + ITEMS.length + ' servicios</button>';
+  $('go').addEventListener('click', runImport);
+}
+
+async function runImport() {
+  const btn = $('go'), err = $('err');
+  btn.disabled = true; btn.textContent = 'Cargando…'; err.textContent = '';
+  try {
+    const b = writeBatch(db);
+    ITEMS.forEach(it => {
+      b.set(doc(db, 'prices', it.id), { name: it.name, price: it.price, pct: PCT, category: it.category, order: it.order });
+      b.set(doc(db, 'services', it.id), { name: it.name, commission: commission(it.price), category: it.category, order: it.order });
+    });
+    await b.commit();
+    $('app').innerHTML = '<h1>Listo</h1><p class="ok">Se cargaron los ' + ITEMS.length + ' servicios.</p>' +
+      '<p class="sub">Ya podés volver a la app y entrar a Servicios para revisarlos. Volver a tocar "Cargar" en este archivo actualiza los mismos servicios si cambiás algo acá arriba, no los duplica.</p>';
+  } catch (e) {
+    console.error(e);
+    err.textContent = 'No se pudo cargar. Revisá tu conexión e intentá de nuevo.';
+    btn.disabled = false; btn.textContent = 'Cargar estos ' + ITEMS.length + ' servicios';
+  }
+}
+
+Au.onAuthStateChanged(auth, user => {
+  if (!user) { renderLogin(); return; }
+  if ((user.email || '').toLowerCase() !== OWNER_EMAIL) { Au.signOut(auth); renderLogin('Esta página es solo para la dueña.'); return; }
+  renderImport();
+});
+</script>
+</body>
+</html>
