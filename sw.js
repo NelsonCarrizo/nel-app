@@ -1,4 +1,4 @@
-const CACHE = 'nel-app-v2';
+const CACHE = 'nel-app-v3';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png'];
 
 self.addEventListener('install', e => {
