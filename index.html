@@ -471,7 +471,7 @@ if (configured) {
   app = A.initializeApp(firebaseConfig);
   auth = Au.getAuth(app);
   try {
-    db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
+    db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: false, experimentalForceLongPolling: true, localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
   } catch (e) { db = F.getFirestore(app); }
 }
 
